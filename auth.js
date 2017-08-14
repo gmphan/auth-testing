@@ -2,15 +2,9 @@
 
 const Hapi = require('hapi');
 const Bcrypt = require('bcrypt')
+const Basic = require('hapi-auth-basic');
 
 // hardcoded users object … just for illustration purposes
-var users = {
-  future: {
-    id: '1',
-    username: 'future',
-    password: '$2a$04$YPy8WdAtWswed8b9MfKixebJkVUhEZxQCrExQaxzhcdR2xMmpSJiG'  // 'studio'
-  }
-}
 
 
 
@@ -22,6 +16,50 @@ server.connection({
     port: 8000
 });
 
+
+/********* start validating ***********/
+var users = {
+  future: {
+    id: '1',
+    username: 'future',
+    password: '$2a$04$YPy8WdAtWswed8b9MfKixebJkVUhEZxQCrExQaxzhcdR2xMmpSJiG'  // 'studio'
+  }
+}
+
+
+const validate = function (request, username, password, callback) {
+    const user = users[username];
+    if (!user) {
+        return callback(null, false);
+    }
+
+    Bcrypt.compare(password, user.password, (err, isValid) => {
+        callback(err, isValid, { id: user.id, name: user.name });
+    });
+};
+
+
+server.register(Basic, (err)=>{
+  if(err){
+    throw err;
+  }
+  server.auth.strategy('simple', 'basic', {validateFunc:validate});
+
+  server.route({
+        method: 'GET',
+        path: '/auth',
+        config: {
+            auth: 'simple',
+            handler: function (request, reply) {
+                reply('hello, ' + request.auth.credentials.name);
+            }
+        }
+    });
+
+
+})
+
+/********** end validating *******************/
 
 
 server.register(require('inert'), (err)=>{
@@ -35,25 +73,25 @@ server.register(require('inert'), (err)=>{
             reply.file('index.html');
         }
     });
-    server.route({
-        method: 'GET',
-        path:'/hello',
-        handler: function (request, reply) {
-
-            return reply('hello world');
-        }
-    });
-
   }
 })
 
+server.route({
+    method: 'GET',
+    path:'/hello',
+    handler: function (request, reply) {
+
+        return reply('hello world');
+    }
+});
+
 
 // register plugins to server instance
-server.register(BasicAuth, function (err) {
-
-  server.auth.strategy('simple', 'basic', { validateFunc: // TODO })
-
-})
+// server.register(BasicAuth, function (err) {
+//
+//   server.auth.strategy('simple', 'basic', { validateFunc: // TODO })
+//
+// })
 
 
 // Start the server
