@@ -2,12 +2,6 @@
 
 const Hapi = require('hapi');
 const Bcrypt = require('bcrypt')
-const Basic = require('hapi-auth-basic');
-
-// hardcoded users object … just for illustration purposes
-
-
-
 
 // Create a server with a host and port
 const server = new Hapi.Server();
@@ -16,8 +10,7 @@ server.connection({
     port: 8000
 });
 
-
-/********* start validating ***********/
+// hardcoded users object … just for illustration purposes
 const users = {
     john: {
         username: 'john',
@@ -27,39 +20,45 @@ const users = {
     }
 };
 
-
+/**+++++++++++ start validating ++++++++++++++**/
 const validate = function (request, username, password, callback) {
     const user = users[username];
     if (!user) {
         return callback(null, false);
     }
+
+    //compare bcrypt vs user password
     Bcrypt.compare(password, user.password, (err, isValid) => {
         callback(err, isValid, { id: user.id, name: user.name });
     });
 };
+/**------------- end validating --------------**/
 
-
-server.register(Basic, (err)=>{
+/**+++++register auth and route for auth+++++++++++++++++++**/
+//register server with hapi-auth-basic scheme auth plugins, and this has a default scheme
+//named 'basic'
+server.register(require('hapi-auth-basic'), (err)=>{
   if(err){
     throw err;
   }
+
+  //'simple' is what we name our strategy (we name it however we want), 'basic'
+  //has to be named exact which was created through server.auth.scheme().
   server.auth.strategy('simple', 'basic', {validateFunc:validate});
 
   server.route({
         method: 'GET',
         path: '/auth',
         config: {
-            auth: 'simple',
+            auth: 'simple', //tell the route to use 'simple' strategy
             handler: function (request, reply) {
                 reply('hello, ' + request.auth.credentials.name);
             }
         }
     });
-
-
 })
+/**-------- End auth and route for auth ----------------**/
 
-/********** end validating *******************/
 
 
 server.register(require('inert'), (err)=>{
@@ -84,14 +83,6 @@ server.route({
         return reply('hello world');
     }
 });
-
-
-// register plugins to server instance
-// server.register(BasicAuth, function (err) {
-//
-//   server.auth.strategy('simple', 'basic', { validateFunc: // TODO })
-//
-// })
 
 
 // Start the server
